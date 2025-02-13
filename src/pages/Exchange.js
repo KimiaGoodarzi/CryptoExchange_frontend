@@ -6,8 +6,9 @@ import "./Exchange.css";
 
 function Exchange() {
   const [prices, setPrices] = useState([]);
+  const [highlightedRows, setHighlightedRows] = useState({});
 
-  // Function to fetch prices from the API on page load
+
   const fetchPrices = async () => {
     try {
       const response = await axios.get("http://localhost:8080/api/prices");
@@ -18,16 +19,16 @@ function Exchange() {
   };
 
   useEffect(() => {
-    fetchPrices(); // Fetch prices initially
+    fetchPrices();
 
-    // Set up WebSocket connection
+
     const socket = new SockJS("http://localhost:8080/crypto-updates");
     const stompClient = Stomp.over(socket);
 
     stompClient.connect({}, () => {
       console.log("Connected to WebSocket");
 
-      // Subscribe to the topic for real-time price updates
+
       stompClient.subscribe("/topic/prices", (message) => {
         const updatedPrice = JSON.parse(message.body);
         console.log("Real-time update received:", updatedPrice);
@@ -38,24 +39,48 @@ function Exchange() {
               price.symbol === updatedPrice.symbol &&
               price.exchange === updatedPrice.exchange
           );
+
           if (existingIndex !== -1) {
-            // If the price exists, update it
+
             const updatedPrices = [...prevPrices];
             updatedPrices[existingIndex] = updatedPrice;
+
+
+            setHighlightedRows((prev) => ({
+              ...prev,
+              [updatedPrice.symbol]: true,
+            }));
+
+
+            setTimeout(() => {
+              setHighlightedRows((prev) => ({
+                ...prev,
+                [updatedPrice.symbol]: false,
+              }));
+            }, 1000);
+
             return updatedPrices;
           }
-          return [...prevPrices, updatedPrice]; // Add new price
+
+          return [...prevPrices, updatedPrice];
         });
       });
     });
 
-    // Cleanup WebSocket when component unmounts
+
     return () => {
       if (stompClient.connected) {
         stompClient.disconnect();
       }
     };
   }, []);
+
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    return date.toISOString().replace("T", " ").slice(0, -3);
+  };
 
   return (
     <div className="exchange-container">
@@ -71,11 +96,14 @@ function Exchange() {
         </thead>
         <tbody>
           {prices.map((price, index) => (
-            <tr key={index}>
+            <tr
+              key={index}
+              className={highlightedRows[price.symbol] ? "highlight" : ""}
+            >
               <td>{price.exchange}</td>
               <td>{price.symbol}</td>
               <td>${parseFloat(price.price).toFixed(2)}</td>
-              <td>{price.timestamp}</td>
+              <td>{formatTimestamp(price.timestamp)}</td>
             </tr>
           ))}
         </tbody>
