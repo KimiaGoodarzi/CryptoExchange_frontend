@@ -27,3 +27,7 @@ th {
 tr:nth-child(even) {
   background-color: #f2f2f2;
 }
+.highlight {
+  background-color: #dff6ff;
+  transition: background-color 1s ease-in-out;
+}
